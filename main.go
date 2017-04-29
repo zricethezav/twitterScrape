@@ -1,89 +1,91 @@
 package main
 
 import (
-       "fmt"
-       "net/http"
-       "golang.org/x/net/html"
-       //"time"
-       // "strings"
+	"fmt"
+	"net/http"
+	"golang.org/x/net/html"
+	//"time"
+	// "strings"
 )
 
 type Tweet struct {
-       tweetText string
-       hashTags []string
-       tweetUrl string
-       time float64 // unix time
+	tweetText string
+	hashTags  []string
+	tweetUrl  string
+	time      float64 // unix time
 }
 
 func main() {
-       // this program demonstrates scraping
-       resp, err := http.Get("https://twitter.com/realDonaldTrump")
-       if err != nil {
-              panic(err)
-       }
-       root, err := html.Parse(resp.Body)
-       if err != nil {
-              panic(err)
-       }
+	// this program demonstrates scraping
+	// TODO:
+	// 	- check if private account of not
+	//	- get actual status link
+	// 	- continuous loading (lookup api req to load more)
 
-       /*
-       var w func(*html.Node)
-       w = func(n *html.Node) {
-              if n.Type == html.ElementNode && n.Data == "div" {
-                     for _, a := range n.Attr {
-                            if a.Key == "class" {
-                                   if a.Val == "stream-item-header" {
-                                          fmt.Println("YOOOOOOOOOOOOO FUCK")
-                                          fmt.Println(a.Val)
-                                          break
-                                   }
-                            }
-                     }
-              }
-       }
-       */
+	resp, err := http.Get("https://twitter.com/realDonaldTrump")
+	if err != nil {
+		panic(err)
+	}
+	root, err := html.Parse(resp.Body)
+	if err != nil {
+		panic(err)
+	}
 
-       var f func(*html.Node, bool)
-       f = func(n *html.Node, parentTweet bool)  {
-	       /*
-              if n.Type == html.TextNode && parentTweet {
-                     fmt.Println(n.Data)
-                     for _, a := range n.Attr {
-                            fmt.Println(a.Key)
-                     }
-              }
-              */
+	// tweitter container
+	//var tweets []Tweet
 
-              if n.Type == html.ElementNode && n.Data == "div" {
-                     for _, a := range n.Attr {
-                            if a.Key == "class" {
-                                   if a.Val == "js-tweet-text-container" {
-					   // process tweet
-					   fmt.Println(p(n, ""))
-					   parentTweet = true
-					   break
-                                   }
-                            }
-                     }
-              }
+	var f func(*html.Node)
+	f = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "div" {
+			for _, a := range n.Attr {
+				if a.Key == "class" {
+					if a.Val == "stream-item-header" {
+						processTweetHeader(n)
+						break
+					}
+					if a.Val == "js-tweet-text-container" {
+						processTweet(n)
+						break
+					}
+				}
+			}
+		}
 
-              for c := n.FirstChild; c != nil; c = c.NextSibling {
-                     f(c, parentTweet)
-              }
-       }
-
-       f(root, false)
-}
-
-func p(n *html.Node, tweet string) string {
-	if n.Type == html.TextNode {
-		fmt.Println(n.Data)
-		for _, a := range n.Attr {
-			fmt.Println(a.Key)
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			f(c)
 		}
 	}
+	f(root)
+}
+
+func processTweet(n *html.Node) string {
+	tweet := ""
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		tweet += p(c, "hhehe")
+		tweet += processTweet(c)
+	}
+	if n.Type == html.TextNode {
+		return string(n.Data)
 	}
 	return tweet
+}
+
+func processTweetHeader(n *html.Node) {
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		for _, a := range c.Attr {
+			if a.Val == "time" {
+				for e := c.FirstChild; e != nil; e = e.NextSibling {
+					for _, a1 := range e.Attr {
+						if a1.Key == "title"{
+							fmt.Println("time: ", a1.Val)
+						}
+						if a1.Key == "href"{
+							fmt.Println("link: ", a1.Val)
+						}
+					}
+
+				}
+
+			}
+		}
+	}
 }
