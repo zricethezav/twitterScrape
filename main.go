@@ -4,24 +4,29 @@ import (
 	"fmt"
 	"net/http"
 	"golang.org/x/net/html"
-	//"time"
-	// "strings"
 )
 
+type TweetHeader struct {
+	tweetUrl   string
+	time       int64 // unix time
+	stringTime string
+}
+type TweetFooter struct {
+	favorites int
+	retweets  int
+}
 type Tweet struct {
-	tweetText string
-	hashTags  []string
-	tweetUrl  string
-	time      float64 // unix time
+	tweetText   string
+	hashTags    []string
+	tweetHeader TweetHeader
+	tweetFooter TweetFooter
 }
 
 func main() {
 	// this program demonstrates scraping
 	// TODO:
 	// 	- check if private account of not
-	//	- get actual status link
 	// 	- continuous loading (lookup api req to load more)
-
 	resp, err := http.Get("https://twitter.com/realDonaldTrump")
 	if err != nil {
 		panic(err)
@@ -31,23 +36,26 @@ func main() {
 		panic(err)
 	}
 
-	// tweitter container
-	//var tweets []Tweet
-
+	tweets := []Tweet{}
+	var currTweet Tweet
+	currEleTweet := false
+	// tree traversal
 	var f func(*html.Node)
 	f = func(n *html.Node) {
 		if n.Type == html.ElementNode && n.Data == "div" {
 			for _, a := range n.Attr {
 				if a.Key == "class" {
 					if a.Val == "stream-item-header" {
-						processTweetHeader(n)
-						break
-					}
-					if a.Val == "js-tweet-text-container" {
-						processTweet(n)
-						break
+						currTweet.tweetHeader = processTweetHeader(n)
+						currEleTweet = true
+					} else if a.Val == "js-tweet-text-container" {
+						currTweet.tweetText = processTweet(n)
 					}
 				}
+			}
+			if currEleTweet{
+				currEleTweet = false
+				tweets = append(tweets, currTweet)
 			}
 		}
 
@@ -56,6 +64,7 @@ func main() {
 		}
 	}
 	f(root)
+	fmt.Println(tweets)
 }
 
 func processTweet(n *html.Node) string {
@@ -69,23 +78,70 @@ func processTweet(n *html.Node) string {
 	return tweet
 }
 
-func processTweetHeader(n *html.Node) {
+func processTweetHeader(n *html.Node) TweetHeader {
+	var header TweetHeader
+
+	var processTweetHeaderHelper func(n *html.Node)
+	processTweetHeaderHelper = func(n *html.Node) {
+		for e := n.FirstChild; e != nil; e = e.NextSibling {
+			for _, a1 := range e.Attr {
+				if a1.Key == "title" {
+					fmt.Println("time: ", a1.Val)
+					header.stringTime = a1.Val
+					header.time = stringTimeToUnixTime(header.stringTime)
+				}
+				if a1.Key == "href" {
+					fmt.Println("link: ", a1.Val)
+					header.tweetUrl = a1.Val
+				}
+			}
+
+		}
+	}
+
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		for _, a := range c.Attr {
 			if a.Val == "time" {
-				for e := c.FirstChild; e != nil; e = e.NextSibling {
-					for _, a1 := range e.Attr {
-						if a1.Key == "title"{
-							fmt.Println("time: ", a1.Val)
-						}
-						if a1.Key == "href"{
-							fmt.Println("link: ", a1.Val)
-						}
-					}
-
-				}
-
+				processTweetHeaderHelper(c)
 			}
 		}
 	}
+	return header
+}
+
+// TODO this guy
+func processTweetFooter(n *html.Node) TweetFooter {
+	var footer TweetFooter
+	var processTweetFooterHelper func(n *html.Node)
+	processTweetFooterHelper = func(n *html.Node) {
+		for e := n.FirstChild; e != nil; e = e.NextSibling {
+			for _, a1 := range e.Attr {
+				if a1.Key == "title" {
+					fmt.Println("time: ", a1.Val)
+				}
+				if a1.Key == "href" {
+					fmt.Println("link: ", a1.Val)
+				}
+			}
+
+		}
+	}
+
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		for _, a := range c.Attr {
+			if a.Val == "time" {
+				processTweetFooterHelper(c)
+			}
+		}
+	}
+	return footer
+}
+
+func stringTimeToUnixTime(stringTime string) int64 {
+	return 1
+}
+
+
+func insertTweet() {
+
 }
