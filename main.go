@@ -2,15 +2,16 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 	"golang.org/x/net/html"
+	"net/http"
 	"time"
+	"strconv"
 )
 
 // constants
 const (
 	twitterTimeStringFmt = "15:04 PM - 2 Jan 2006"
-	localTimeZone = "CST" // timezone where the compute is happening
+	localTimeZone        = "CST" // timezone where the compute is happening
 )
 
 type TweetHeader struct {
@@ -21,6 +22,7 @@ type TweetHeader struct {
 type TweetFooter struct {
 	favorites int
 	retweets  int
+	replies   int
 }
 type Tweet struct {
 	tweetText   string
@@ -52,7 +54,7 @@ func main() {
 	var currTweet Tweet
 	currEleTweet := false
 
-	// tree traversal
+	// tree traversal (html tag traversal)
 	var htmlTweetParser func(*html.Node)
 	htmlTweetParser = func(n *html.Node) {
 		// check if node type is div, if yes investigate attributes of the node
@@ -60,18 +62,19 @@ func main() {
 			for _, a := range n.Attr {
 				if a.Key == "class" {
 					if a.Val == "stream-item-header" {
-						currTweet.tweetHeader = retrieveTweetHeader(n)
+						currTweet.tweetHeader = retrieveTweetHeader(n.FirstChild)
 						currEleTweet = true
 					} else if a.Val == "js-tweet-text-container" {
 						currTweet.tweetText = retrieveTweet(n)
 					} else if a.Val == "stream-item-footer" {
-						currTweet.tweetFooter = retrieveTweetFooter(n)
+						fmt.Println("YOOOO")
+						currTweet.tweetFooter = retrieveTweetFooter(n.FirstChild)
 					}
 				}
 			}
 			// if current node contains attributes that signal a tweet, add to
 			// tweet slice and reset currEleTweet flag
-			if currEleTweet{
+			if currEleTweet {
 				currEleTweet = false
 				tweets = append(tweets, currTweet)
 			}
@@ -85,7 +88,7 @@ func main() {
 	fmt.Println(tweets)
 }
 
-// retrieve 
+// retrieve
 func retrieveTweet(n *html.Node) string {
 	tweet := ""
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
@@ -97,6 +100,8 @@ func retrieveTweet(n *html.Node) string {
 	return tweet
 }
 
+// retrieveTweetHeader parses the children of an html.Node object and extracts the timestamp and url of the tweet.
+// Returns a TweetHeader
 func retrieveTweetHeader(n *html.Node) TweetHeader {
 	var header TweetHeader
 
@@ -116,7 +121,7 @@ func retrieveTweetHeader(n *html.Node) TweetHeader {
 		}
 	}
 
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
+	for c := n; c != nil; c = c.NextSibling {
 		for _, a := range c.Attr {
 			if a.Val == "time" {
 				processTweetHeaderHelper(c)
@@ -128,24 +133,45 @@ func retrieveTweetHeader(n *html.Node) TweetHeader {
 
 func retrieveTweetFooter(n *html.Node) TweetFooter {
 	var footer TweetFooter
+
+	// processTweetFooterHelper is the ProfileTweet-actionCountlist processor.
+	// It drills down and looks for replies, likes, and retweets.
+	// TODO extract WHO retweeted, liked, and replied.
 	var processTweetFooterHelper func(n *html.Node)
 	processTweetFooterHelper = func(n *html.Node) {
 		for e := n.FirstChild; e != nil; e = e.NextSibling {
 			for _, a1 := range e.Attr {
-				if a1.Key == "title" {
-					fmt.Println("time: ", a1.Val)
+				if a1.Val == "ProfileTweet-action--reply u-hiddenVisually" {
+					count, err := strconv.Atoi(e.FirstChild.NextSibling.Attr[1].Val)
+					if err != nil {
+						footer.replies = 0
+					} else {
+						footer.replies = count
+					}
 				}
-				if a1.Key == "href" {
-					fmt.Println("link: ", a1.Val)
+				if a1.Val == "ProfileTweet-action--favorite u-hiddenVisually" {
+					count, err := strconv.Atoi(e.FirstChild.NextSibling.Attr[1].Val)
+					if err != nil {
+						footer.favorites = 0
+					} else {
+						footer.favorites = count
+					}
+				}
+				if a1.Val == "ProfileTweet-action--retweet u-hiddenVisually" {
+					count, err := strconv.Atoi(e.FirstChild.NextSibling.Attr[1].Val)
+					if err != nil {
+						footer.retweets = 0
+					} else {
+						footer.retweets = count
+					}
 				}
 			}
-
 		}
 	}
-
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
+	for c := n; c != nil; c = c.NextSibling {
 		for _, a := range c.Attr {
-			if a.Val == "time" {
+			if a.Val == "ProfileTweet-actionCountList u-hiddenVisually" {
+				fmt.Println("found ProfileTweet Content")
 				processTweetFooterHelper(c)
 			}
 		}
@@ -162,5 +188,3 @@ func stringTimeToUnixTime(stringTime string) int64 {
 	}
 	return tweetTime.Unix()
 }
-
-
