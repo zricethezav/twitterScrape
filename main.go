@@ -54,10 +54,10 @@ func main() {
 	var currTweet Tweet
 	currEleTweet := false
 
-	// tree traversal (html tag traversal)
+	// htmlTweetParser traverses html tags which is a tree structure. It looks for the tweet contents, header, and
+	// footer and will call their respective helper functions to retrieve data for the content, header, and footer.
 	var htmlTweetParser func(*html.Node)
 	htmlTweetParser = func(n *html.Node) {
-		// check if node type is div, if yes investigate attributes of the node
 		if n.Type == html.ElementNode && n.Data == "div" {
 			for _, a := range n.Attr {
 				if a.Key == "class" {
@@ -80,6 +80,7 @@ func main() {
 			}
 		}
 
+		// DFS
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			htmlTweetParser(c)
 		}
@@ -88,7 +89,9 @@ func main() {
 	fmt.Println(tweets)
 }
 
-// retrieve
+// retrieveTweet looks for all TextNodes in the js-tweet-text-container tag and constructs the tweet.
+// returns a String
+// TODO, parse hashtags
 func retrieveTweet(n *html.Node) string {
 	tweet := ""
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
@@ -131,12 +134,14 @@ func retrieveTweetHeader(n *html.Node) TweetHeader {
 	return header
 }
 
+// retrieveTweetFooter parses the children of an html.Node object and extracts the number of likes, replies,
+// and retweets.
+// Returns a TweetFooter
 func retrieveTweetFooter(n *html.Node) TweetFooter {
 	var footer TweetFooter
 
 	// processTweetFooterHelper is the ProfileTweet-actionCountlist processor.
 	// It drills down and looks for replies, likes, and retweets.
-	// TODO extract WHO retweeted, liked, and replied.
 	var processTweetFooterHelper func(n *html.Node)
 	processTweetFooterHelper = func(n *html.Node) {
 		for e := n.FirstChild; e != nil; e = e.NextSibling {
