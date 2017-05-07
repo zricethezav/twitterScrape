@@ -6,12 +6,16 @@ import (
 	"net/http"
 	"time"
 	"strconv"
+	"strings"
+	"regexp"
 )
 
 // constants
 const (
 	twitterTimeStringFmt = "15:04 PM - 2 Jan 2006"
 	localTimeZone        = "CST" // timezone where the compute is happening
+	hashTagRegEx = "#([a-zA-Z\\d]+)"
+	mentionRegEx = "@([a-zA-Z\\d]+)"
 )
 
 type TweetHeader struct {
@@ -27,6 +31,7 @@ type TweetFooter struct {
 type Tweet struct {
 	tweetText   string
 	hashTags    []string
+	mentions []string
 	tweetHeader TweetHeader
 	tweetFooter TweetFooter
 }
@@ -66,8 +71,9 @@ func main() {
 						currEleTweet = true
 					} else if a.Val == "js-tweet-text-container" {
 						currTweet.tweetText = retrieveTweet(n)
+						currTweet.hashTags = extractHashTags(currTweet.tweetText)
+						currTweet.mentions = extractMentions(currTweet.tweetText)
 					} else if a.Val == "stream-item-footer" {
-						fmt.Println("YOOOO")
 						currTweet.tweetFooter = retrieveTweetFooter(n.FirstChild)
 					}
 				}
@@ -89,16 +95,45 @@ func main() {
 	fmt.Println(tweets)
 }
 
+func extractHashTags(tweetText string) []string {
+	var hashTags []string
+	if !strings.Contains(tweetText, "#") {
+		return hashTags
+	} else {
+		// regex matching
+		// https://regex-golang.appspot.com/assets/html/index.html
+		r, _ := regexp.Compile(hashTagRegEx)
+		hashTags = r.FindAllString(tweetText, -1)
+		return hashTags
+	}
+}
+
+func extractMentions(tweetText string) []string {
+	var mentions []string
+	if !strings.Contains(tweetText, "@") {
+		return mentions
+	} else {
+		r, _ := regexp.Compile(mentionRegEx)
+		mentions = r.FindAllString(tweetText, -1)
+		return mentions
+	}
+}
+
 // retrieveTweet looks for all TextNodes in the js-tweet-text-container tag and constructs the tweet.
 // returns a String
-// TODO, parse hashtags
 func retrieveTweet(n *html.Node) string {
 	tweet := ""
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		tweet += retrieveTweet(c)
 	}
 	if n.Type == html.TextNode {
-		return string(n.Data)
+		partialTweet := string(n.Data)
+		// preventing run-on hashtags/links
+		if strings.Contains(partialTweet, "#") || strings.Contains(partialTweet, "@"){
+			return partialTweet
+		} else {
+			return partialTweet + " "
+		}
 	}
 	return tweet
 }
