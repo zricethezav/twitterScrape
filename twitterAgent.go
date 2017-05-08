@@ -19,25 +19,27 @@ const (
 	twitterLoadMoreBase = "https://twitter.com/i/profiles/show/%s/timeline/tweets?include_available_features=1&include_entities=1&max_position=%s&reset_error_state=false"
 )
 
-type TweetHeader struct {
-	tweetUrl   string
-	time       int64 // unix time
+type tweetHeader struct {
+	tweetURL   string
+	time       int64
 	stringTime string
 }
-type TweetFooter struct {
+
+type tweetFooter struct {
 	favorites int
 	retweets  int
 	replies   int
 }
-type Tweet struct {
+
+type tweet struct {
 	tweetText   string
 	hashTags    []string
-	mentions []string
-	tweetHeader TweetHeader
-	tweetFooter TweetFooter
+	mentions    []string
+	tweetHeader tweetHeader
+	tweetFooter tweetFooter
 }
 
-func getTweets(twitterHandle string ) []Tweet {
+func getTweets(twitterHandle string ) []tweet {
 	resp, err := http.Get(fmt.Sprintf("https://twitter.com/%s", twitterHandle))
 	if err != nil {
 		panic(err)
@@ -47,8 +49,8 @@ func getTweets(twitterHandle string ) []Tweet {
 		panic(err)
 	}
 
-	tweets := []Tweet{}
-	var currTweet Tweet
+	tweets := []tweet{}
+	var currTweet tweet
 	currEleTweet := false
 
 	// htmlTweetParser traverses html tags which is a tree structure. It looks for the tweet contents, header, and
@@ -92,13 +94,12 @@ func extractHashTags(tweetText string) []string {
 	var hashTags []string
 	if !strings.Contains(tweetText, "#") {
 		return hashTags
-	} else {
-		// regex matching
-		// https://regex-golang.appspot.com/assets/html/index.html
-		r, _ := regexp.Compile(hashTagRegEx)
-		hashTags = r.FindAllString(tweetText, -1)
-		return hashTags
 	}
+	// regex matching
+	// https://regex-golang.appspot.com/assets/html/index.html
+	r, _ := regexp.Compile(hashTagRegEx)
+	hashTags = r.FindAllString(tweetText, -1)
+	return hashTags
 }
 
 //extractMentions
@@ -106,11 +107,10 @@ func extractMentions(tweetText string) []string {
 	var mentions []string
 	if !strings.Contains(tweetText, "@") {
 		return mentions
-	} else {
-		r, _ := regexp.Compile(mentionRegEx)
-		mentions = r.FindAllString(tweetText, -1)
-		return mentions
 	}
+	r, _ := regexp.Compile(mentionRegEx)
+	mentions = r.FindAllString(tweetText, -1)
+	return mentions
 }
 
 // retrieveTweet looks for all TextNodes in the js-tweet-text-container tag and constructs the tweet.
@@ -125,17 +125,16 @@ func retrieveTweet(n *html.Node) string {
 		// preventing run-on hashtags/links
 		if strings.Contains(partialTweet, "#") || strings.Contains(partialTweet, "@"){
 			return partialTweet
-		} else {
-			return partialTweet + " "
 		}
+		return partialTweet + " "
 	}
 	return tweet
 }
 
 // retrieveTweetHeader parses the children of an html.Node object and extracts the timestamp and url of the tweet.
-// Returns a TweetHeader
-func retrieveTweetHeader(n *html.Node) TweetHeader {
-	var header TweetHeader
+// Returns a tweetHeader
+func retrieveTweetHeader(n *html.Node) tweetHeader {
+	var header tweetHeader
 
 	var processTweetHeaderHelper func(n *html.Node)
 	processTweetHeaderHelper = func(n *html.Node) {
@@ -146,7 +145,7 @@ func retrieveTweetHeader(n *html.Node) TweetHeader {
 					header.time = stringTimeToUnixTime(header.stringTime)
 				}
 				if a1.Key == "href" {
-					header.tweetUrl = a1.Val
+					header.tweetURL = a1.Val
 				}
 			}
 
@@ -165,9 +164,9 @@ func retrieveTweetHeader(n *html.Node) TweetHeader {
 
 // retrieveTweetFooter parses the children of an html.Node object and extracts the number of likes, replies,
 // and retweets.
-// Returns a TweetFooter
-func retrieveTweetFooter(n *html.Node) TweetFooter {
-	var footer TweetFooter
+// Returns a tweetFooter
+func retrieveTweetFooter(n *html.Node) tweetFooter {
+	var footer tweetFooter
 
 	// processTweetFooterHelper is the ProfileTweet-actionCountlist processor.
 	// It drills down and looks for replies, likes, and retweets.

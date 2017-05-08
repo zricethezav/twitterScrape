@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"flag"
+	"github.com/golang/glog"
 )
+
 
 func main() {
 	// TODO 1: change all printf to log statements w proper logID
@@ -18,6 +20,7 @@ func main() {
 	twitterHandlePtr := flag.String("handle", "", "please supply twitter handle")
 	numTweetsPtr := flag.Int("num_tweets", 20, "please supply number of tweets to process")
 	flag.Parse()
+	glog.Info("Retrieving %d tweets for %s", *numTweetsPtr, *twitterHandlePtr)
 	twitterController(*twitterHandlePtr, *numTweetsPtr)
 }
 
@@ -26,13 +29,13 @@ func twitterController(twitterHandle string, numTweets int) {
 	if len(tweets) == 0 {
 		fmt.Println(fmt.Sprintf("No tweets for accout: %s", twitterHandle))
 		return
-	} else {
-		fmt.Println(tweets)
 	}
+
 	for len(tweets) < numTweets {
 		tweets = append(tweets, getTweets(twitterHandle)...)
 		// TODO put delay in here so we don't trip twitter's fkn bullshit
 	}
 
-	fmt.Println(tweets)
+	// fmt.Println(tweets
+
 }
