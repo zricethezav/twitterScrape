@@ -17,6 +17,8 @@ func main() {
 	// TODO 7: schedule high profile account jobs
 	// TODO 8: setup influxdb to track stats like followers, followings, follower ratio, etc
 
+	// TODO 9: use twitter api
+
 	twitterHandlePtr := flag.String("handle", "", "please supply twitter handle")
 	numTweetsPtr := flag.Int("num_tweets", 20, "please supply number of tweets to process")
 	flag.Parse()
